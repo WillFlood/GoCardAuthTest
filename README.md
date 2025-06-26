@@ -124,3 +124,81 @@ Exposed via Expo Constants in code (`Constants.expoConfig.extra`):
 
 GoCardless 
 //sandbox_PAvBG_9P5Hb2NJk0p7Lt8TGojHcNwr5oaO9imwRz --Test access token
+
+## GoCardless Backend Integration
+
+This project includes a Node.js/Express backend for integrating with GoCardless Direct Debit (sandbox mode). Follow these steps to set up and run the backend:
+
+### 1. Prerequisites
+- Node.js and npm installed
+- A GoCardless sandbox account ([sign up here](https://manage-sandbox.gocardless.com/signup))
+- Your GoCardless sandbox access token
+
+### 2. Environment Setup
+1. In the `backend/` directory, create a `.env` file:
+   ```env
+   GOCARDLESS_ACCESS_TOKEN=your_sandbox_access_token_here
+   GOCARDLESS_ENVIRONMENT=sandbox
+   BASE_URL=http://localhost:3000
+   ```
+   - **Do not commit your `.env` file to GitHub!**
+
+### 3. Install Dependencies
+From the `backend/` directory, run:
+```bash
+npm install
+```
+
+### 4. Start the Backend Server
+From the `backend/` directory, run:
+```bash
+node index.js
+```
+You should see output indicating the server is running and the GoCardless client is initialized.
+
+### 5. Test the Endpoints
+You can use Postman or cURL to test the backend:
+
+#### Start a Redirect Flow
+```http
+POST http://localhost:3000/api/start-redirect-flow
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "email": "test@example.com"
+}
+```
+- The response will include a `redirect_url`. Open this in your browser to complete the GoCardless form using test bank details.
+
+#### Confirm the Redirect Flow
+After completing the GoCardless form, POST to:
+```http
+POST http://localhost:3000/api/confirm-redirect-flow
+Content-Type: application/json
+
+{
+  "redirect_flow_id": "<from previous response>",
+  "session_token": "<from previous response>"
+}
+```
+- The response will include a `mandate_id` and `customer_id`.
+
+#### (Optional) Create a Payment
+```http
+POST http://localhost:3000/api/create-payment
+Content-Type: application/json
+
+{
+  "amount": 1000, // Amount in pence/cents (e.g., 1000 = £10.00)
+  "currency": "GBP",
+  "mandate_id": "<from previous step>"
+}
+```
+
+### 6. Notes
+- This backend is for development/testing only (uses GoCardless sandbox).
+- Do not commit your `.env` file or any secrets to version control.
+- You can connect your frontend/mobile app to these endpoints for a full integration.
+
+---
