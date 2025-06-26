@@ -121,3 +121,6 @@ Exposed via Expo Constants in code (`Constants.expoConfig.extra`):
 * `firebaseStorageBucket`
 * `firebaseMessagingSenderId`
 * `firebaseAppId`
+
+GoCardless 
+//sandbox_PAvBG_9P5Hb2NJk0p7Lt8TGojHcNwr5oaO9imwRz --Test access token
