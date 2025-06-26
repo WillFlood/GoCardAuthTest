@@ -5,6 +5,7 @@ require('dotenv').config();
 const express = require('express'); // Web framework for Node.js
 const cors = require('cors'); // Middleware to enable Cross-Origin Resource Sharing
 const gocardless = require('gocardless-pro-node'); // GoCardless SDK
+const admin = require('firebase-admin');
 
 // Create an Express application
 const app = express();
@@ -26,6 +27,12 @@ const client = new gocardless.Client({
 });
 
 console.log('GoCardless client initialized.');
+
+// Initialize Firebase Admin SDK
+admin.initializeApp({
+  credential: admin.credential.applicationDefault(), // or use a service account
+});
+const db = admin.firestore();
 
 // 1. Start a redirect flow (user sets up direct debit)
 app.post('/api/start-redirect-flow', async (req, res) => {
@@ -50,8 +57,8 @@ app.post('/api/start-redirect-flow', async (req, res) => {
     // Log the parameters being sent to GoCardless
     console.log('Params sent to GoCardless:', params);
 
-    // Create the redirect flow with GoCardless
-    const redirectFlow = await client.redirect_flows.create({ params });
+    // Create the redirect flow with GoCardless (pass params directly)
+    const redirectFlow = await client.redirect_flows.create(params);
     // Log the response from GoCardless
     console.log('GoCardless redirectFlow response:', redirectFlow);
 
@@ -76,9 +83,16 @@ app.post('/api/confirm-redirect-flow', async (req, res) => {
   try {
     // Destructure redirect_flow_id and session_token from the request body
     const { redirect_flow_id, session_token } = req.body;
-    // Complete the redirect flow with GoCardless
-    const redirectFlow = await client.redirect_flows.complete(redirect_flow_id, {
-      params: { session_token }
+    // Complete the redirect flow with GoCardless (wrap session_token in data envelope)
+    const redirectFlow = await client.redirect_flows.complete(
+      redirect_flow_id,
+      { data: { session_token } }
+    );
+    // Save mandate and customer info to Firestore
+    await db.collection('gocardlessMandates').add({
+      mandate_id: redirectFlow.links.mandate,
+      customer_id: redirectFlow.links.customer,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     // Respond with the mandate ID and customer ID
     res.json({
@@ -100,13 +114,11 @@ app.post('/api/create-payment', async (req, res) => {
   try {
     // Destructure amount, currency, and mandate_id from the request body
     const { amount, currency, mandate_id } = req.body;
-    // Create a payment with GoCardless
+    // Create a payment with GoCardless (pass params directly)
     const payment = await client.payments.create({
-      params: {
-        amount, // Amount in pence/cents (e.g., 1000 = £10.00)
-        currency, // Currency code (e.g., 'GBP')
-        links: { mandate: mandate_id } // Link the payment to the mandate
-      }
+      amount, // Amount in pence/cents (e.g., 1000 = £10.00)
+      currency, // Currency code (e.g., 'GBP')
+      links: { mandate: mandate_id } // Link the payment to the mandate
     });
     // Respond with the payment object from GoCardless
     res.json(payment);
